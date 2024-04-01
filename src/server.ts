@@ -16,7 +16,7 @@ app.use(express.static(path.join(__dirname, "dist")));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cors({
-  origin: process.env["FRONT_ADDRESS "],
+  origin: process.env.FRONT_ADDRESS,
   credentials: true,
 }));
 const sessionMiddleware = session({
@@ -59,7 +59,7 @@ app.post("/checkUserInGame", (req, res) => {
 const io = new Server(server, {
   cookie: true,
   cors: {
-    origin: process.env["FRONT_ADDRESS "],
+    origin: process.env.FRONT_ADDRESS,
     methods: ['GET', 'POST'],
     credentials: true,
   }
@@ -93,17 +93,18 @@ io.use((socket, next) => {
 
   if (!game.users?.length) {
     if (userName && !Array.isArray(userName)) {
-      game.users.push({ id: id, name: userName, type: "master" });
+      game.users.push({ id: id, name: userName, type: "master", online: true });
     }
   }
   
-  if (game.users.some(x => x.id === id)) {
-    console.log('user reconnected')
+  const user = game.users.find(x => x.id === id);
+  if (user) {
+    user.online = true;
     next();
   } else {
     if (userName && !Array.isArray(userName)) {
       if (!game.users.some(x => x.name === userName)) {
-        game.users.push({ id: id, name: userName, type: "player" });
+        game.users.push({ id: id, name: userName, type: "player", online: true });
         next();
       } else {
         next(new Error('name is already in use'));
@@ -172,7 +173,17 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     const user = game.users.find(x => x.id === socket.request.session.userId);
+    
     if (user) {
+      setTimeout(() => {
+        if (!user.online && user.type === 'master' && game.users.filter(x=> x.type === 'master')?.length > 1) {
+          game = {
+            id: 'single room', users: [], roleSettings: initRoles(), state: 'new'
+          }
+          updateGame();
+        }
+      }, 1 * 60 * 1000);
+      
       user.online = false;
       updateGame();
     }
