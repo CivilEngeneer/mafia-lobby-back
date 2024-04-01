@@ -32,9 +32,13 @@ const port = process.env.PORT || "3210";
 const server = http.createServer(app);
 server.listen(port, () => console.log(`API running on localhost:${port}`));
 
-app.get("/", (req, res) => {
-  res.send('server is working');
-})
+// Раздача статических файлов из папки dist
+app.use(express.static(path.join(__dirname, '../../mafia-lobby-front/dist/mafia-lobby-front/')));
+
+// Обработка всех маршрутов (кроме /v1) - отправка index.html
+app.get('/', (req, res, next) => {
+  res.sendFile(path.join(__dirname, '../../mafia-lobby-front/dist/mafia-lobby-front/index.html'));
+});
 
 export enum PermissionAnswer {
   userInGame,
