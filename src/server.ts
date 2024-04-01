@@ -36,7 +36,7 @@ server.listen(port, () => console.log(`API running on localhost:${port}`));
 app.use(express.static(path.join(__dirname, '../../mafia-lobby-front/dist/mafia-lobby-front/')));
 
 // Обработка всех маршрутов (кроме /v1) - отправка index.html
-app.get('/', (req, res, next) => {
+app.get('**', (req, res, next) => {
   res.sendFile(path.join(__dirname, '../../mafia-lobby-front/dist/mafia-lobby-front/index.html'));
 });
 

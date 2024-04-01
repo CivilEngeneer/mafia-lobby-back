@@ -1,5 +1,5 @@
 ﻿export type UserType = 'master' | 'player' | 'observer';
-export type Role = 'mafia' | 'boss' | 'peaceful' | 'commissar' | 'doctor' | 'whore' | 'maniac';
+export type Role = 'mafia' | 'don' | 'peaceful' | 'commissar' | 'doctor' | 'lady' | 'maniac';
 
 export interface User {
   id: string;
