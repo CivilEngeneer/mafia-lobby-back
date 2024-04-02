@@ -36,7 +36,7 @@ server.listen(port, () => console.log(`API running on localhost:${port}`));
 app.use(express.static(path.join(__dirname, '../../mafia-lobby-front/dist/mafia-lobby-front/')));
 
 // Обработка всех маршрутов (кроме /v1) - отправка index.html
-app.get('**', (req, res, next) => {
+app.get('', (req, res, next) => {
   res.sendFile(path.join(__dirname, '../../mafia-lobby-front/dist/mafia-lobby-front/index.html'));
 });
 
@@ -47,8 +47,6 @@ export enum PermissionAnswer {
 }
 
 app.post("/checkUserInGame", (req, res) => {
-  // req.session.userId = req.session.id; // ??? нужно ли это здесь
-  const id = req.session.id; // ??? нужно ли это здесь
   let result;
   if (!game) {
     result = PermissionAnswer.gameNotExists;
@@ -59,6 +57,10 @@ app.post("/checkUserInGame", (req, res) => {
   }
   res.send(JSON.stringify(result));
 });
+
+app.get("/isNameUnique/:name", (req, res) => {
+  res.send(JSON.stringify(game?.users ? game.users.some(x => x.name === req.params.name) : true));
+})
 
 const io = new Server(server, {
   cookie: true,
@@ -73,6 +75,7 @@ io.engine.use(sessionMiddleware);
 io.use(sharedsession(sessionMiddleware, { autoSave: true }));
 
 let game: Game;
+const roomId = 'single room';
 
 function initRoles(): RoleSetting[] {
   return [
@@ -90,7 +93,7 @@ io.use((socket, next) => {
 
   if (!game) {
     game = {
-      id: 'single room', users: [], roleSettings: initRoles(), state: 'new'
+      id: roomId, users: [], roleSettings: initRoles(), state: 'new'
     };
     console.log('game created')
   }
@@ -100,7 +103,7 @@ io.use((socket, next) => {
       game.users.push({ id: id, name: userName, type: "master", online: true });
     }
   }
-  
+
   const user = game.users.find(x => x.id === id);
   if (user) {
     user.online = true;
@@ -111,6 +114,7 @@ io.use((socket, next) => {
         game.users.push({ id: id, name: userName, type: "player", online: true });
         next();
       } else {
+        console.log('name is already in use');
         next(new Error('name is already in use'));
       }
     } else {
@@ -122,18 +126,18 @@ io.use((socket, next) => {
 
 io.on('connection', (socket) => {
   console.log(`user ${socket.request.session.id} connected`);
-  socket.emit('set id', {id: socket.request.session.id})
+  socket.emit('set id', { id: socket.request.session.id })
   socket.join(game.id);
   updateGame();
 
   socket.on('userChanged', (user: User) => {
-    const masters = game.users.filter(x=>x.type === "master");
-    if (masters.length < 2 && masters.some(x=>x.id == user.id && x.type !== user.type)) {
+    const masters = game.users.filter(x => x.type === "master");
+    if (masters.length < 2 && masters.some(x => x.id == user.id && x.type !== user.type)) {
       socket.emit('exception', { message: 'there is should be at least 1 master' });
       updateGame();
       return;
     }
-    
+
     game.users.indexOf(user)
     game.users.some((x, i) => {
       if (x.id === user.id) {
@@ -149,11 +153,11 @@ io.on('connection', (socket) => {
   });
 
   socket.on('startGame', () => {
-    if (game.state === "inProcess"){
+    if (game.state === "inProcess") {
       socket.emit('exception', { message: 'Game is in process couldn\'t to start new.' });
       return;
     }
-    
+
     try {
       const players = game.users.filter(x => x.type === "player");
       const users = game.users.filter(x => x.type !== "player");
@@ -167,32 +171,42 @@ io.on('connection', (socket) => {
 
     updateGame();
   });
-  
+
   socket.on('restartGame', () => {
     game.users = resetRoles(game.users);
     game.state = "new";
-    
+
+    updateGame();
+  });
+
+  socket.on('closeGame', () => {
+    closeGame();
     updateGame();
   });
 
   socket.on('disconnect', () => {
     const user = game.users.find(x => x.id === socket.request.session.userId);
-    
+
     if (user) {
       setTimeout(() => {
-        if (!user.online && user.type === 'master' && game.users.filter(x=> x.type === 'master')?.length > 1) {
-          game = {
-            id: 'single room', users: [], roleSettings: initRoles(), state: 'new'
-          }
+        if (!user.online && user.type === 'master' && game.users.filter(x => x.type === 'master')?.length > 1) {
+          closeGame();
           updateGame();
         }
       }, 1 * 60 * 1000);
-      
+
       user.online = false;
       updateGame();
     }
   })
 })
+
+function closeGame() {
+  game = {
+    id: roomId, users: [], roleSettings: initRoles(), state: 'new'
+  }
+  io.in(roomId).disconnectSockets()
+}
 
 function updateGame() {
   io.to(game.id).emit('changed', JSON.stringify(game));

@@ -1,6 +1,6 @@
 import { Role, RoleSetting, User } from "../models/models";
 
-export function resetRoles(users: User[]): User[]{
+export function resetRoles(users: User[]): User[] {
   for (let i = 0; i < users.length; i++) {
     users[i].role = undefined;
     users[i].opened = undefined;
@@ -18,8 +18,8 @@ export function assignRoles(players: User[], settings: RoleSetting[]): User[] {
   if (!settings || !settings.length) {
     throw new Error('Here no settings.');
   }
-  
-  if (players.length !== settings.map(x=>x.amount).reduce((a, b) => a + b, 0)) {
+
+  if (players.length !== settings.map(x => x.amount).reduce((a, b) => a + b, 0)) {
     throw new Error('The length of users and settings must be the same.');
   }
 
