@@ -27,9 +27,6 @@ export function assignRoles(players: User[], settings: RoleSetting[]): User[] {
   for (const setting of settings) {
     for (let i = 0; i < setting.amount; i++) {
       roles.push(setting.role);
-      if (setting.role === 'don') {
-        roles.push('mafia');
-      }
     }
   }
 
