@@ -32,10 +32,8 @@ const port = process.env.PORT || "3210";
 const server = http.createServer(app);
 server.listen(port, () => console.log(`API running on localhost:${port}`));
 
-// Раздача статических файлов из папки dist
 app.use(express.static(path.join(__dirname, '../../mafia-lobby-front/dist/mafia-lobby-front/')));
 
-// Обработка всех маршрутов (кроме /v1) - отправка index.html
 app.get('', (req, res, next) => {
   res.sendFile(path.join(__dirname, '../../mafia-lobby-front/dist/mafia-lobby-front/index.html'));
 });
@@ -59,7 +57,7 @@ app.post("/checkUserInGame", (req, res) => {
 });
 
 app.get("/isNameUnique/:name", (req, res) => {
-  res.send(JSON.stringify(game?.users ? game.users.some(x => x.name === req.params.name) : true));
+  res.send(JSON.stringify(game?.users ? game.users.some(x => x.name === req.params.name) : false));
 })
 
 const io = new Server(server, {
@@ -79,7 +77,7 @@ const roomId = 'single room';
 
 function initRoles(): RoleSetting[] {
   return [
-    { role: "peaceful", amount: 1 },
+    { role: "citizen", amount: 1 },
     { role: "mafia", amount: 1 },
     { role: "commissar", amount: 1 },
     { role: "doctor", amount: 1 },
@@ -88,6 +86,7 @@ function initRoles(): RoleSetting[] {
 
 io.use((socket, next) => {
   const { id } = socket.request.session;
+  console.log(`handshaking for ${id}`)
   socket.request.session.userId = id; //??? это нужно здесь
   const userName = socket.handshake.query['name'];
 
@@ -111,7 +110,7 @@ io.use((socket, next) => {
   } else {
     if (userName && !Array.isArray(userName)) {
       if (!game.users.some(x => x.name === userName)) {
-        game.users.push({ id: id, name: userName, type: "player", online: true });
+        game.users.push({ id: id, name: userName, type: game.state === 'new' ? "player" : "observer", online: true });
         next();
       } else {
         console.log('name is already in use');

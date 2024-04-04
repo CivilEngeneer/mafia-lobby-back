@@ -41,7 +41,7 @@ export function assignRoles(players: User[], settings: RoleSetting[]): User[] {
       ...players[i],
     });
     result[i].role = [roles[i]];
-    result[i].finished = false;
+    result[i].opened = false;
     result[i].position = i + 1;
   }
 
